@@ -33,7 +33,6 @@ state auth
 ACTIVESTATE_API_KEY=$(state export new-api-key state_env_key)
 docker run -it -v $PWD/bin:/output --entrypoint=/bin/bash amazonlinux:2 /output /create_spark_state_env.sh $ACTIVESTATE_API_KEY $PROJECT
 
-
 export S3_UPLOAD_PREFIX=s3://your-bucket/your-prefix
 
 # bundle up your own source code (optional)
