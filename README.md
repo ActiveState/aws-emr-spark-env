@@ -1,19 +1,19 @@
 This repository provides a script that checks out an ActiveState project and copies the artifacts in a
-specific cache directory.
+specific runtime directory.
 
-The cache directory is /home/hadoop/environment/runtime which is a place where
+The runtime directory is /home/hadoop/environment/runtime which is a place where
 the runtime will be un-packed on the EMR images later. (Refer to [1] to see how
 this should look like without the State Tool)
 
 As the runtime will be executed by potentially hundreds of hosts in parallel
 and thousands of time on each host, we do not want to use executors!
-Instead we want to use the binaries directly, as this is an undocumented
-use-case that we actually want to hide, I wrote this silly script.
+Instead we want to use the binaries directly which is an undocumented
+use case.
 
-It writes a tarball with the artifacts in the `/output` directory along with a file called HASH.
+The writes a tarball with the artifacts in the `/output` directory.
 The Path to the python executable can then be set as:
 
-/home/hadoop/environment/runtime/$(cat hash)/usr/bin/python
+/home/hadoop/environment/usr/bin/python
 
 How to use this script inside your project:
 
@@ -32,16 +32,15 @@ PROJECT=myorg/myproject
 state auth
 ACTIVESTATE_API_KEY=$(state export new-api-key state_env_key)
 docker run -it -v $PWD/bin:/output --entrypoint=/bin/bash amazonlinux:2 /output /create_spark_state_env.sh $ACTIVESTATE_API_KEY $PROJECT
+```
 
+upload it to S3 
+
+```sh
 export S3_UPLOAD_PREFIX=s3://your-bucket/your-prefix
 
 # bundle up your own source code (optional)
 git archive --format=zip HEAD:src > project_archive.zip
-
-export APP_ID='...'
-
-export EXECUTION_ROLE='...'
-export EXECUTION_ROLE_ARN=$(aws iam get-role --role-name $EXECUTION_ROLE | jq -r .Role.Arn )
 
 s3_upload() {
     S3_PATH=$1; shift
@@ -59,6 +58,15 @@ s3_upload() {
 s3_upload $S3_UPLOAD_PREFIX bin/state_env.tar.gz
 s3_upload $S3_UPLOAD_PREFIX project_archive.zip 
 s3_upload $S3_UPLOAD_PREFIX migration-script.py
+```
+
+and finally schedule the job like this:
+
+```sh
+export APP_ID='...'
+
+export EXECUTION_ROLE='...'
+export EXECUTION_ROLE_ARN=$(aws iam get-role --role-name $EXECUTION_ROLE | jq -r .Role.Arn )
 
 JOB_DRIVER=$(jq -n \
      --arg cs "$CORES" \
@@ -67,7 +75,7 @@ JOB_DRIVER=$(jq -n \
      --arg migration_file "$S3_UPLOAD_PATH/migration-script.py" \
      --arg state_env_file "$S3_UPLOAD_PATH/state_env.tar.gz" \
      --arg project_archive_file "$S3_PATH/project_archive.zip" \
-     --arg python_path "./environment/runtime/$(cat bin/hash)/usr/bin/python" \
+     --arg python_path "./environment/usr/bin/python" \
      --argjson args "[$LIMIT_ARGS\"--output_suffix=$SUFFIX\", \"$SOURCE\"]" \
      '{
         sparkSubmit: {
